@@ -62,6 +62,29 @@ func Delete(c *fiber.Ctx, key string) error {
 	return store.Save()
 }
 
+func DeleteKeys(c *fiber.Ctx, keys ...string) error {
+	store, err := DefaultSession.Get(c)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		store.Delete(key)
+	}
+	return store.Save()
+}
+
+func DeleteWithDistroy(c *fiber.Ctx, keys ...string) error {
+	store, err := DefaultSession.Get(c)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		store.Delete(key)
+	}
+	Destroy(c)
+	return store.Save()
+}
+
 func Get(c *fiber.Ctx, key string) (interface{}, error) {
 	store, err := DefaultSession.Get(c)
 	if err != nil {
