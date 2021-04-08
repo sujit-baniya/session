@@ -42,13 +42,15 @@ func New(cfg Config) *session.Store {
 	return DefaultSession
 }
 
-func Set(c *fiber.Ctx, key string, value interface{}) error {
+func SetKeys(c *fiber.Ctx, data fiber.Map) error {
 	store, err := DefaultSession.Get(c)
 	if err != nil {
 		return err
 	}
-	store.Set(key, value)
-	return nil
+	for key, value := range data {
+		store.Set(key, value)
+	}
+	return store.Save()
 }
 
 func Delete(c *fiber.Ctx, key string) error {
@@ -57,7 +59,7 @@ func Delete(c *fiber.Ctx, key string) error {
 		return err
 	}
 	store.Delete(key)
-	return nil
+	return store.Save()
 }
 
 func Get(c *fiber.Ctx, key string) (interface{}, error) {
@@ -73,7 +75,8 @@ func Destroy(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return store.Destroy()
+	store.Destroy()
+	return store.Save()
 }
 
 func Save(c *fiber.Ctx) error {
