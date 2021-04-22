@@ -2,6 +2,8 @@ package session
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/storage/postgres"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -16,9 +18,11 @@ var DefaultSession = session.New(session.Config{
 })
 
 type Config struct {
+	Driver         string
 	Host           string
 	Port           int
-	DB             int
+	DB             string
+	Table          string
 	Username       string
 	Password       string
 	Expiration     time.Duration
@@ -27,17 +31,32 @@ type Config struct {
 }
 
 func New(cfg Config) *session.Store {
-	DefaultSession = session.New(session.Config{
-		Expiration:     cfg.Expiration,
-		CookieName:     cfg.CookieName,
-		CookieHTTPOnly: cfg.CookieHttpOnly,
-		Storage: redis.New(redis.Config{
+	var store fiber.Storage
+	switch cfg.Driver {
+	case "postgres":
+		store = postgres.New(postgres.Config{
 			Host:     cfg.Host,
 			Port:     cfg.Port,
 			Username: cfg.Username,
 			Password: cfg.Password,
 			Database: cfg.DB,
-		}),
+			Table:    cfg.Table,
+		})
+	default:
+		db, _ := strconv.Atoi(cfg.DB)
+		store = redis.New(redis.Config{
+			Host:     cfg.Host,
+			Port:     cfg.Port,
+			Username: cfg.Username,
+			Password: cfg.Password,
+			Database: db,
+		})
+	}
+	DefaultSession = session.New(session.Config{
+		Expiration:     cfg.Expiration,
+		CookieName:     cfg.CookieName,
+		CookieHTTPOnly: cfg.CookieHttpOnly,
+		Storage:        store,
 	})
 	return DefaultSession
 }
@@ -73,7 +92,7 @@ func DeleteKeys(c *fiber.Ctx, keys ...string) error {
 	return store.Save()
 }
 
-func DeleteWithDistroy(c *fiber.Ctx, keys ...string) error {
+func DeleteWithDestroy(c *fiber.Ctx, keys ...string) error {
 	store, err := DefaultSession.Get(c)
 	if err != nil {
 		return err
