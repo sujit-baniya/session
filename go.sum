@@ -13,6 +13,8 @@ github.com/go-redis/redis/v8 v8.8.0 h1:fDZP58UN/1RD3DjtTXP/fFZ04TFohSYhjZDkcDe2d
 github.com/go-redis/redis/v8 v8.8.0/go.mod h1:F7resOH5Kdug49Otu24RjHWwgK7u9AmtqWMnCV1iP5Y=
 github.com/gofiber/fiber/v2 v2.7.1 h1:CpzGXD+7VhmptQ6McU5qYyRFxZdQkP2Y32ySIid+BXQ=
 github.com/gofiber/fiber/v2 v2.7.1/go.mod h1:f8BRRIMjMdRyt2qmJ/0Sea3j3rwwfufPrh9WNBRiVZ0=
+github.com/gofiber/storage/memory v0.0.0-20210421061343-aedc03b9c306 h1:qoiC6VhOiKTEUsLRqTuRH0TFu0O40oyEIR694XemSLA=
+github.com/gofiber/storage/memory v0.0.0-20210421061343-aedc03b9c306/go.mod h1:7aJr9KTG0EoLVCqJ8Pnr2LpRGn2DrcO5euzmpw/GB00=
 github.com/gofiber/storage/postgres v0.0.0-20210421061343-aedc03b9c306 h1:puxtR8IWg3NAme1e0AFtzYSwquxTqQ06Kc871Y9436Q=
 github.com/gofiber/storage/postgres v0.0.0-20210421061343-aedc03b9c306/go.mod h1:sCxMexEV1O9jjyLLbOjlGT2E4VsZ0f4rEEgMb2nZ4AA=
 github.com/gofiber/storage/redis v0.0.0-20210406212841-7cfce7a88b07 h1:aFA7P5IRLMZSIYecrO+zmJDG8SrcKQG70iOm8uQIBuM=

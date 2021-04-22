@@ -1,18 +1,29 @@
 package session
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/storage/postgres"
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/gofiber/storage/memory"
+	"github.com/gofiber/storage/postgres"
 	"github.com/gofiber/storage/redis"
 )
 
+var rememberMeExpiry = 7 * 24 * time.Hour
+var defaultExpiry = 30 * time.Minute
+
 var DefaultSession = session.New(session.Config{
-	Expiration:     30 * time.Minute,
+	Expiration:     defaultExpiry,
 	CookieName:     "Verify-Session",
+	CookieHTTPOnly: true,
+	Storage:        memory.New(),
+})
+
+var RememberMeSession = session.New(session.Config{
+	Expiration:     rememberMeExpiry,
+	CookieName:     "Verify-Session-Remember",
 	CookieHTTPOnly: true,
 	Storage:        redis.New(),
 })
@@ -30,6 +41,13 @@ type Config struct {
 	CookieHttpOnly bool
 }
 
+func Default(cfg Config) {
+	DefaultSession = New(cfg)
+}
+func RememberMe(cfg Config) {
+	RememberMeSession = New(cfg)
+}
+
 func New(cfg Config) *session.Store {
 	var store fiber.Storage
 	switch cfg.Driver {
@@ -42,6 +60,8 @@ func New(cfg Config) *session.Store {
 			Database: cfg.DB,
 			Table:    cfg.Table,
 		})
+	case "memory":
+		store = memory.New()
 	default:
 		db, _ := strconv.Atoi(cfg.DB)
 		store = redis.New(redis.Config{
@@ -52,103 +72,80 @@ func New(cfg Config) *session.Store {
 			Database: db,
 		})
 	}
-	DefaultSession = session.New(session.Config{
+	return session.New(session.Config{
 		Expiration:     cfg.Expiration,
 		CookieName:     cfg.CookieName,
 		CookieHTTPOnly: cfg.CookieHttpOnly,
 		Storage:        store,
 	})
-	return DefaultSession
 }
 
 func SetKeys(c *fiber.Ctx, data fiber.Map) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
+	sess := mustPickSession(c)
 	for key, value := range data {
-		store.Set(key, value)
+		sess.Set(key, value)
 	}
-	return store.Save()
+	return sess.Save()
 }
 
 func Delete(c *fiber.Ctx, key string) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
-	store.Delete(key)
-	return store.Save()
+	sess := mustPickSession(c)
+	sess.Delete(key)
+	return sess.Save()
 }
 
 func DeleteKeys(c *fiber.Ctx, keys ...string) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
+	sess := mustPickSession(c)
 	for _, key := range keys {
-		store.Delete(key)
+		sess.Delete(key)
 	}
-	return store.Save()
+	return sess.Save()
 }
 
 func DeleteWithDestroy(c *fiber.Ctx, keys ...string) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
+	sess := mustPickSession(c)
 	for _, key := range keys {
-		store.Delete(key)
+		sess.Delete(key)
 	}
 	Destroy(c)
-	return store.Save()
+	return sess.Save()
 }
 
 func Get(c *fiber.Ctx, key string) (interface{}, error) {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return nil, err
-	}
-	return store.Get(key), nil
+	sess := mustPickSession(c)
+	return sess.Get(key), nil
 }
 
 func Destroy(c *fiber.Ctx) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
-	store.Destroy()
-	return store.Save()
+	sess := mustPickSession(c)
+	sess.Destroy()
+	return sess.Save()
 }
 
 func Save(c *fiber.Ctx) error {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return err
-	}
-	return store.Save()
+	sess := mustPickSession(c)
+	return sess.Save()
 }
 
 func Fresh(c *fiber.Ctx) (bool, error) {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return false, err
-	}
-	return store.Fresh(), nil
+	sess := mustPickSession(c)
+	return sess.Fresh(), nil
 }
 
 func ID(c *fiber.Ctx) (string, error) {
-	store, err := DefaultSession.Get(c)
-	if err != nil {
-		return "", err
-	}
-	return store.ID(), nil
+	sess := mustPickSession(c)
+	return sess.ID(), nil
 }
 
 func Regenerate(c *fiber.Ctx) error {
-	store, err := DefaultSession.Get(c)
+	sess := mustPickSession(c)
+	return sess.Regenerate()
+}
+
+func mustPickSession(c *fiber.Ctx) *session.Session {
+	sess, err := DefaultSession.Get(c)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	return store.Regenerate()
+	return sess
 }
