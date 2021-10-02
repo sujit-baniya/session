@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/gob"
 	"strconv"
 	"time"
 
@@ -11,45 +12,49 @@ import (
 	"github.com/gofiber/storage/redis"
 )
 
-var rememberMeExpiry = 7 * 24 * time.Hour
-var defaultExpiry = 30 * time.Minute
+var RememberMeExpiry = 30 * 24 * time.Hour
+var DefaultSessionExpiry = 30 * time.Minute
 
 var DefaultSession = session.New(session.Config{
-	Expiration:     defaultExpiry,
-	CookieName:     "Verify-Session",
+	Expiration:     DefaultSessionExpiry,
+	KeyLookup:      "cookie:Verify-Session",
 	CookieHTTPOnly: true,
 	Storage:        memory.New(),
 })
 
-var RememberMeSession = session.New(session.Config{
-	Expiration:     rememberMeExpiry,
-	CookieName:     "Verify-Session-Remember",
-	CookieHTTPOnly: true,
-	Storage:        redis.New(),
-})
-
 type Config struct {
-	Driver         string
-	Host           string
-	Port           int
-	DB             string
+	Driver         string `yaml:"driver" env:"DB_DRIVER"`
+	Host           string `yaml:"host" env:"DB_HOST"`
+	Username       string `yaml:"username" env:"DB_USER"`
+	Password       string `yaml:"password" env:"DB_PASS"`
+	DB             string `yaml:"db" env:"DB_NAME"`
+	Port           int    `yaml:"port" env:"DB_PORT"`
 	Table          string
-	Username       string
-	Password       string
 	Expiration     time.Duration
 	CookieName     string
 	CookieHttpOnly bool
+	RegisterTypes  []interface{}
 }
 
 func Default(cfg Config) {
 	DefaultSession = New(cfg)
-}
-func RememberMe(cfg Config) {
-	RememberMeSession = New(cfg)
+	for _, i := range cfg.RegisterTypes {
+		Register(i)
+	}
 }
 
 func New(cfg Config) *session.Store {
 	var store fiber.Storage
+	cfg.CookieHttpOnly = true
+	if cfg.Expiration == 0 {
+		cfg.Expiration = DefaultSessionExpiry
+	}
+	if cfg.CookieName == "" {
+		cfg.CookieName = "cookie:Verify-Session"
+	}
+	if cfg.Table == "" {
+		cfg.Table = "login_sessions"
+	}
 	switch cfg.Driver {
 	case "postgres":
 		store = postgres.New(postgres.Config{
@@ -74,16 +79,28 @@ func New(cfg Config) *session.Store {
 	}
 	return session.New(session.Config{
 		Expiration:     cfg.Expiration,
-		CookieName:     cfg.CookieName,
+		KeyLookup:      cfg.CookieName,
 		CookieHTTPOnly: cfg.CookieHttpOnly,
 		Storage:        store,
 	})
 }
 
-func SetKeys(c *fiber.Ctx, data fiber.Map) error {
+func Set(c *fiber.Ctx, key string, value interface{}, exp ...time.Duration) error {
+	sess := mustPickSession(c)
+	sess.Set(key, value)
+	if len(exp) > 0 {
+		sess.SetExpiry(exp[0])
+	}
+	return sess.Save()
+}
+
+func SetKeys(c *fiber.Ctx, data fiber.Map, exp ...time.Duration) error {
 	sess := mustPickSession(c)
 	for key, value := range data {
 		sess.Set(key, value)
+	}
+	if len(exp) > 0 {
+		sess.SetExpiry(exp[0])
 	}
 	return sess.Save()
 }
@@ -91,6 +108,16 @@ func SetKeys(c *fiber.Ctx, data fiber.Map) error {
 func Delete(c *fiber.Ctx, key string) error {
 	sess := mustPickSession(c)
 	sess.Delete(key)
+	return sess.Save()
+}
+
+func RememberMe(c *fiber.Ctx) error {
+	return SetExpiry(c, RememberMeExpiry)
+}
+
+func SetExpiry(c *fiber.Ctx, exp time.Duration) error {
+	sess := mustPickSession(c)
+	sess.SetExpiry(exp)
 	return sess.Save()
 }
 
@@ -148,4 +175,16 @@ func mustPickSession(c *fiber.Ctx) *session.Session {
 		panic(err)
 	}
 	return sess
+}
+
+func SetUser(c *fiber.Ctx, user interface{}) error {
+	return Set(c, "user", user)
+}
+
+func User(c *fiber.Ctx) (interface{}, error) {
+	return Get(c, "user")
+}
+
+func Register(i interface{}) {
+	gob.Register(i)
 }
