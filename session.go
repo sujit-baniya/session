@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/gofiber/storage/memory"
+	"github.com/gofiber/storage/mysql"
 	"github.com/gofiber/storage/postgres"
 	"github.com/gofiber/storage/redis"
 )
@@ -65,8 +66,20 @@ func New(cfg Config) *session.Store {
 			Database: cfg.DB,
 			Table:    cfg.Table,
 		})
+		break
+	case "mysql":
+		store = mysql.New(mysql.Config{
+			Host:     cfg.Host,
+			Port:     cfg.Port,
+			Username: cfg.Username,
+			Password: cfg.Password,
+			Database: cfg.DB,
+			Table:    cfg.Table,
+		})
+		break
 	case "memory":
 		store = memory.New()
+		break
 	default:
 		db, _ := strconv.Atoi(cfg.DB)
 		store = redis.New(redis.Config{
@@ -76,6 +89,7 @@ func New(cfg Config) *session.Store {
 			Password: cfg.Password,
 			Database: db,
 		})
+		break
 	}
 	return session.New(session.Config{
 		Expiration:     cfg.Expiration,
